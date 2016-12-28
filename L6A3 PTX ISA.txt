@@ -1,0 +1,44 @@
+PTX ISA:
+main:
+.entryA3{}{
+
+## n is in r8
+
+
+add.s32 r16, r8, 0       # save N in s0 
+
+## Begin summation 
+or.s32 r11, r11, -1                 # N iterator 
+
+or.f32 r10, r10, 0.0             # K count 
+or.f32 r22, r22, 1.0 
+or.f32 rf20, r20 1.0 			  # 1/ 
+or.f32 r25, r25, 0.0            # Sigma: 1/k 
+
+summation:
+	add.s32 r11, r11, 1               # increment N counter 
+	add.f32 r10, r10, r22    # increment K count 
+	or.f32 r11, r11, 1.0            # k 
+	or.f32 r1, r1, 0.0             # factorial iterator 
+	sept.eq.s32 r9, r11, r8        # test if exponential is equal to count 
+	@r12 bra divLoop   			# branch return to finish calculation 	
+	
+	j loop 
+
+loop:  
+	add.f32 r1, r1, r22   # Increment factorial counter 
+	mul.f32 r11, r1, r11  # Add factorial element 
+	sept.eq.f32 r12, r1, r10        # test if exponential is equal to count 
+	@r12 bra divLoop   			# branch return to finish calculation 	
+	j loop
+	
+	
+divLoop:
+	div.f32 r15, r20, r11  # divide 1/!n 
+	add.f32 r25, r25, r15  # add sequence 
+	j summation
+	
+	
+End:
+	ret;
+	}

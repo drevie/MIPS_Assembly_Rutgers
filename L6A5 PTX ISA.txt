@@ -1,0 +1,163 @@
+PTX ISA:
+main:
+.entryA5{}{
+## Iterator 
+or.s32 r8, r8, -1 
+
+## Begin summation 
+or.f32 r22, r22, 1.0            # value 1 
+or.f32 r23, r23, 2.0            # value 2 
+or.f32 r24, r24, 4.0            # value 4 
+or.f32 r29, r29, 1.57079632679  # value pi/2  
+or.f32 r10, r10, 0.0            # N count 
+
+# terms 
+or.f32 r19, r19, -1.0         #(-1)^n 
+or.f32 r18, r18, 1.0          #(2n)!
+or.f32 r17, r17, 1.0          # 4^n 
+or.f32 r16, r16, 1.0          # (n!) ^ 2 
+or.f32 r15, r15, 1.0          # (2n + 1)
+or.f32 f14, f14, 1.0          # (pi/2)^(2n +1 )
+or.f32 r25, r25, 0.0          # Sigma: [(-1)^n * (2n)!] / 4^n * (n!)^2 * (2n+1)
+
+or.f32 r30, r30, 0.0          # sinh^-1
+or.f32 r31, r31, 0.0          # cosh^-1
+
+
+Summation:
+	add.s32 r8, r8, 1           # Increment N iterations 
+	add.f32 r10, r10, r22     # increment n count 
+	# terms 
+	or.f32 r19, r19, -1.0         #(-1)^n 
+	or.f32 r18, r18, 1.0          #(2n)!
+	or.f32 r17, r17, 1.0          # 4^n 
+	or.f32 r16, r16, 1.0          # (n!) ^ 2 
+	or.f32 r15, r15, 1.0          # (2n + 1)
+	or.f32 r14, r14, 1.0          # (pi/2)^(2n +1 )
+	or.f32 r25, r25, 0.0          # Sigma: [(-1)^n * (2n)!] / 4^n * (n!)^2 * (2n+1)
+	or.f32 r7, r7, 0.0           # reset cosh 
+	
+	spt.eq.s32 r12, r8, r16,
+	@r12 bra End
+	
+CalculationLoop:
+		
+	##(-1)^n
+	or.f32 f26, f26, 0.0 			 # reset register 
+	or.f32 f27, f27, 0.0  		 # reset register
+	add.f32 f26, f26, r10   # N = number of times to raise to exponent 
+	j Exponential_A
+	ReturnExponential_A:
+	
+	
+	## 4^n 
+	or.f32 f26, f26, 0.0            # reset register 
+	or.f32 f27, f27, 0.0            # reset register 
+	add.f32 f26, f26, r10    # perform exponential 10 times
+	j Exponential_B
+	ReturnExponential_B:
+	
+	
+	
+	## (pi/2)^(2n+1)
+	or.f32 f26, f26, 0.0 
+	or.f32 f27, f27, 0.0 
+	mul.f32 f26, r10, r23    # 2n 
+	add.f32 f26, f26, r22    # 2n+1 
+	j Exponential_C
+	ReturnExponential_C:
+	
+	
+	
+	## (2n)! 
+	or.f32 $f26, 0.0            # reset register 
+	or.f32 $f27, 0.0            # reset register 
+	mul.f32 f26, r10, r23    # 2n 
+	j Factorial_I
+	ReturnFactorial_I:
+	
+	
+	
+	## (n!)^2 
+	or.f32 $f26, 0.0 
+	or.f32 $f27, 0.0 
+	add.f32 f26, f26, r10 
+	j Factorial_II  		   # n! 
+	ReturnFactorial_II:
+	mul.f32 r16, r16, r23     # 2n! 
+	
+	## (2n+1)
+	mul.f32 r15, r15, r10     # 2n 
+	add.f32 r15, r15, r22     # 2n + 1 
+	
+
+	
+	## Complete cosh 
+	div.f32 f7, f14, r15 
+	add.f32 f12, f12, f7 
+	
+	## Complete sinh
+	mul.f32 r19, r19, r18     # [(-1)^n * (2n)!]
+	mul.f32 r17, r17, r16     # 4^n * (n!)^2
+	mul.f32 r17, r17, r15     # 4^n * (n!)^2 * (2n+1)
+	div.f32 r19, r19, r17     # Sigma: [(-1)^n * (2n)!] / 4^n * (n!)^2 * (2n+1)]
+	mul.f32 r19, r19, f14     # [(-1)^n * (2n)!] / 4^n * (n!)^2 * (2n+1)] * (pi/z)^(2n + 1)
+	add.f32 f11, f11, r19     # add result to sum 
+	
+	
+
+	
+	
+	j Summation
+
+
+
+Exponential_A:
+	add.f32 f27, f27, r22   # increment exponential counter 
+	sept.eq.f32 r12, r26, r27        # test if exponential is equal to count 
+	@r12 bra ReturnExponential_A     # branch return to finish calculation 
+	mul.f32 r19, r19, r19     # perform square 
+	j Exponential_A          # repeat otherwise 	
+
+	
+Exponential_B:
+	add.f32 f27, f27, r22            # increment exponential counter 
+	sept.eq.f32 r12, r26, r27        # test if exponential is equal to count 
+	@r12 bra ReturnExponential_B    # branch return to finish calculation 
+	mul.f32 r17, r17, r24         # perform square 
+	j Exponential_B               #       repeat otherwise 	
+
+	
+Exponential_C:
+	add.f32 f27, f27, r22   # increment exponential counter 
+	c.eq.s $f26, $f27        # test if exponential is equal to count 
+	bc1t ReturnExponential_C # branch return to finish calculation 
+	mul.f32 f14, f14, r29   # perform square 
+	j Exponential_C          # repeat otherwise 
+	
+Factorial_I: 
+	add.f32 f27, f27, r22    # increment factorial counter
+	sept.eq.f32 r12, r26, r27        # test if exponential is equal to count 
+	@r12 bra ReturnFactorial_I    # branch return to finish calculation 	
+	mul.f32 r18, r18, f27    # multiple factorial element 
+	j Factorial_I             # repeat otherwise 
+	
+Factorial_II: 
+	add.f32 f27, f27, r22     # increment factorial counter
+	sept.eq.f32 r12, r26, r27        # test if exponential is equal to count 
+	@r12 bra ReturnFactorial_II    # branch return to finish calculation 	
+	mul.f32 r16, r16, f27     # multiple factorial element 
+	j Factorial_II             # repeat otherwise 
+	
+
+	
+
+	
+
+
+	
+	
+End:
+
+ret;
+}
